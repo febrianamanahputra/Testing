@@ -1,0 +1,73 @@
+{
+  "entities": {
+    "Workspace": {
+      "title": "Workspace",
+      "description": "A collaborative workspace for a team",
+      "type": "object",
+      "required": ["name", "ownerId", "aclEmails", "createdAt", "updatedAt"],
+      "properties": {
+        "name": { "type": "string" },
+        "ownerId": { "type": "string" },
+        "aclEmails": { 
+          "type": "array", 
+          "items": { "type": "string" },
+          "description": "Array of emails that have access to this workspace. Max 20."
+        },
+        "createdAt": { "type": "string" },
+        "updatedAt": { "type": "string" }
+      }
+    },
+    "Material": {
+      "title": "Material",
+      "description": "A material tracked in the system",
+      "type": "object",
+      "required": ["name", "sku", "category", "currentLocation", "status", "workspaceId", "aclEmails", "createdBy", "updatedAt", "createdAt"],
+      "properties": {
+        "name": { "type": "string" },
+        "sku": { "type": "string" },
+        "category": { "type": "string" },
+        "currentLocation": { "type": "string" },
+        "status": { "type": "string" },
+        "workspaceId": { "type": "string" },
+        "aclEmails": { 
+          "type": "array", 
+          "items": { "type": "string" }
+        },
+        "createdBy": { "type": "string", "description": "Creator UID" },
+        "createdAt": { "type": "string" },
+        "updatedAt": { "type": "string" }
+      }
+    },
+    "History": {
+      "title": "History Record",
+      "description": "A movement or status change record",
+      "type": "object",
+      "required": ["location", "status", "note", "timestamp", "createdBy", "aclEmails"],
+      "properties": {
+        "location": { "type": "string" },
+        "status": { "type": "string" },
+        "note": { "type": "string" },
+        "timestamp": { "type": "string" },
+        "createdBy": { "type": "string" },
+        "aclEmails": { 
+          "type": "array", 
+          "items": { "type": "string" }
+        }
+      }
+    }
+  },
+  "firestore": {
+    "/workspaces/{workspaceId}": {
+      "schema": "Workspace",
+      "description": "Root collection for teams/workspaces"
+    },
+    "/materials/{materialId}": {
+      "schema": "Material",
+      "description": "Root collection for materials, filtered by aclEmails"
+    },
+    "/materials/{materialId}/history/{historyId}": {
+      "schema": "History",
+      "description": "Subcollection for movement history, filtered by aclEmails"
+    }
+  }
+}

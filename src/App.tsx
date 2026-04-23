@@ -1,8 +1,11 @@
 import { useState, useMemo } from 'react';
 import { useMaterials } from './hooks/useMaterials';
+import { useAuth } from './components/AuthProvider';
+import { useWorkspaces } from './hooks/useWorkspaces';
 import { AddMaterialModal } from './components/AddMaterialModal';
 import { MoveMaterialModal } from './components/MoveMaterialModal';
 import { HistoryModal } from './components/HistoryModal';
+import { TeamModal } from './components/TeamModal';
 import { Material } from './types';
 import { 
   Package, 
@@ -16,15 +19,20 @@ import {
   Box,
   Truck,
   Wrench,
-  AlertTriangle
+  AlertTriangle,
+  LogOut,
+  Users
 } from 'lucide-react';
 
 export default function App() {
-  const { materials, addMaterial, updateLocation, deleteMaterial } = useMaterials();
+  const { user, loading: authLoading, signIn, signOut } = useAuth();
+  const { workspaces, activeWorkspace, setActiveWorkspace, loadingWorkspaces } = useWorkspaces();
+  const { materials, addMaterial, updateLocation, deleteMaterial } = useMaterials(activeWorkspace);
   const [searchQuery, setSearchQuery] = useState('');
   
   // Modal states
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [isTeamModalOpen, setIsTeamModalOpen] = useState(false);
   const [materialToMove, setMaterialToMove] = useState<Material | null>(null);
   const [materialHistory, setMaterialHistory] = useState<Material | null>(null);
 
@@ -60,6 +68,30 @@ export default function App() {
     }
   };
 
+  if (authLoading || loadingWorkspaces) {
+    return <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">Loading...</div>;
+  }
+
+  if (!user) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center p-4 font-sans text-slate-800">
+        <div className="bg-white p-8 rounded-2xl shadow-xl w-full max-w-md text-center border border-gray-100">
+          <div className="w-16 h-16 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center mx-auto mb-6">
+            <Box size={32} />
+          </div>
+          <h1 className="text-3xl font-bold tracking-tight text-slate-900 mb-2">TrackMat.sys</h1>
+          <p className="text-slate-500 mb-8 border-b border-gray-100 pb-8">Log in to view and manage material tracking data in the cloud.</p>
+          <button 
+            onClick={signIn}
+            className="w-full flex justify-center items-center gap-3 px-6 py-4 bg-slate-900 text-white font-semibold rounded-xl hover:bg-slate-800 transition-colors"
+          >
+            Sign in with Google
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col font-sans text-slate-800">
       {/* Header */}
@@ -69,13 +101,39 @@ export default function App() {
             <div className="flex items-center gap-8">
               <div className="text-xl font-bold tracking-tight text-blue-600">MAT-TRAK<span className="text-slate-400 font-light">.sys</span></div>
             </div>
-            <div className="flex items-center gap-4 text-sm">
-              <div className="hidden sm:block text-right">
-                <p className="font-semibold text-slate-800">Admin Operator</p>
-                <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider italic mt-0.5">Logistics Hub A</p>
+            <div className="flex items-center gap-6 text-sm">
+              <div className="hidden sm:flex items-center gap-2 px-4 py-2 bg-white rounded-lg border border-gray-200">
+                <Users size={16} className="text-slate-400" />
+                <span className="font-semibold text-slate-700">{activeWorkspace?.name || 'Workspace'}</span>
+                <button 
+                  onClick={() => setIsTeamModalOpen(true)}
+                  className="ml-2 text-[10px] uppercase font-bold tracking-wider text-blue-600 hover:text-blue-800 transition-colors"
+                >
+                  Manage
+                </button>
               </div>
-              <div className="w-10 h-10 rounded-full bg-slate-200 flex items-center justify-center text-slate-600">
-                👤
+
+              <div className="hidden sm:block text-right">
+                <p className="font-semibold text-slate-800">{user.displayName || 'Operator'}</p>
+                <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider italic mt-0.5">{user.email}</p>
+              </div>
+              <div className="relative group">
+                <div className="w-10 h-10 rounded-full bg-slate-200 flex items-center justify-center text-slate-600 overflow-hidden border-2 border-white shadow-sm cursor-pointer">
+                  {user.photoURL ? (
+                    <img src={user.photoURL} alt={user.displayName || 'User'} className="w-full h-full object-cover" />
+                  ) : (
+                    "👤"
+                  )}
+                </div>
+                <div className="absolute right-0 top-full mt-2 w-48 bg-white rounded-xl shadow-lg border border-gray-100 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all">
+                  <button 
+                    onClick={signOut}
+                    className="w-full px-4 py-3 flex items-center gap-3 text-sm text-red-600 font-medium hover:bg-red-50 transition-colors rounded-xl"
+                  >
+                    <LogOut size={16} />
+                    Sign Out
+                  </button>
+                </div>
               </div>
             </div>
           </div>
@@ -284,17 +342,27 @@ export default function App() {
         </div>
       </main>
 
-      <AddMaterialModal 
-        isOpen={isAddModalOpen} 
-        onClose={() => setIsAddModalOpen(false)} 
-        onAdd={addMaterial} 
-      />
+      {isAddModalOpen && (
+        <AddMaterialModal 
+          onClose={() => setIsAddModalOpen(false)} 
+          onAdd={addMaterial} 
+        />
+      )}
+
+      {isTeamModalOpen && (
+        <TeamModal 
+          workspace={activeWorkspace}
+          onClose={() => setIsTeamModalOpen(false)}
+        />
+      )}
       
-      <MoveMaterialModal 
-        material={materialToMove} 
-        onClose={() => setMaterialToMove(null)} 
-        onMove={updateLocation} 
-      />
+      {materialToMove && (
+        <MoveMaterialModal 
+          material={materialToMove} 
+          onClose={() => setMaterialToMove(null)} 
+          onMove={updateLocation} 
+        />
+      )}
       
       <HistoryModal 
         material={materialHistory} 

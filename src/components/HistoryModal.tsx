@@ -1,5 +1,9 @@
-import { Material } from '../types';
+import { useState, useEffect } from 'react';
+import { Material, MaterialHistory } from '../types';
 import { X, Clock, MapPin } from 'lucide-react';
+import { collection, query, orderBy, onSnapshot } from 'firebase/firestore';
+import { db } from '../firebase';
+import { handleFirestoreError } from '../utils/firestore-error';
 
 interface HistoryModalProps {
   material: Material | null;
@@ -7,6 +11,37 @@ interface HistoryModalProps {
 }
 
 export function HistoryModal({ material, onClose }: HistoryModalProps) {
+  const [history, setHistory] = useState<MaterialHistory[]>([]);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (!material) {
+      setHistory([]);
+      return;
+    }
+    
+    setLoading(true);
+    const q = query(
+      collection(db, 'materials', material.id, 'history'),
+      orderBy('timestamp', 'desc')
+    );
+
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const records = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      })) as MaterialHistory[];
+      setHistory(records);
+      setLoading(false);
+    }, (error) => {
+      console.error(error);
+      setLoading(false);
+      handleFirestoreError(error, 'list', `materials/${material.id}/history`);
+    });
+
+    return () => unsubscribe();
+  }, [material]);
+
   if (!material) return null;
 
   return (
@@ -23,43 +58,49 @@ export function HistoryModal({ material, onClose }: HistoryModalProps) {
         </div>
         
         <div className="p-6 overflow-y-auto">
-          <div className="relative border-l-2 border-gray-100 ml-3 space-y-8">
-            {material.history.map((record, index) => (
-              <div key={record.id} className="relative pl-6">
-                {/* Timeline dot */}
-                <div className={`absolute -left-[9px] top-1 h-4 w-4 rounded-full border-2 border-white ${index === 0 ? 'bg-blue-500' : 'bg-gray-300'}`}></div>
-                
-                <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-1">
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <h3 className="text-sm font-semibold text-slate-800 flex items-center gap-1.5">
-                        <MapPin size={14} className={index === 0 ? 'text-blue-500' : 'text-slate-400'} />
-                        {record.location}
-                      </h3>
-                      {index === 0 && (
-                        <span className="px-2 py-0.5 text-[10px] font-bold tracking-wider text-blue-600 bg-blue-50 rounded-full uppercase">Saat Ini</span>
+          {loading ? (
+            <div className="flex justify-center p-8 text-slate-400">Loading records...</div>
+          ) : history.length === 0 ? (
+            <div className="flex justify-center p-8 text-slate-400">No records found.</div>
+          ) : (
+            <div className="relative border-l-2 border-gray-100 ml-3 space-y-8">
+              {history.map((record, index) => (
+                <div key={record.id} className="relative pl-6">
+                  {/* Timeline dot */}
+                  <div className={`absolute -left-[9px] top-1 h-4 w-4 rounded-full border-2 border-white ${index === 0 ? 'bg-blue-500' : 'bg-gray-300'}`}></div>
+                  
+                  <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-1">
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <h3 className="text-sm font-semibold text-slate-800 flex items-center gap-1.5">
+                          <MapPin size={14} className={index === 0 ? 'text-blue-500' : 'text-slate-400'} />
+                          {record.location}
+                        </h3>
+                        {index === 0 && (
+                          <span className="px-2 py-0.5 text-[10px] font-bold tracking-wider text-blue-600 bg-blue-50 rounded-full uppercase">Saat Ini</span>
+                        )}
+                      </div>
+                      {record.note && (
+                        <p className="text-sm text-slate-600 mt-1">{record.note}</p>
                       )}
                     </div>
-                    {record.note && (
-                      <p className="text-sm text-slate-600 mt-1">{record.note}</p>
-                    )}
-                  </div>
-                  <div className="flex items-center gap-1.5 text-xs text-slate-400 sm:mt-0.5">
-                    <Clock size={12} />
-                    <time dateTime={record.timestamp}>
-                      {new Date(record.timestamp).toLocaleString('id-ID', {
-                        day: 'numeric',
-                        month: 'short',
-                        year: 'numeric',
-                        hour: '2-digit',
-                        minute: '2-digit'
-                      })}
-                    </time>
+                    <div className="flex items-center gap-1.5 text-xs text-slate-400 sm:mt-0.5">
+                      <Clock size={12} />
+                      <time dateTime={record.timestamp}>
+                        {new Date(record.timestamp).toLocaleString('id-ID', {
+                          day: 'numeric',
+                          month: 'short',
+                          year: 'numeric',
+                          hour: '2-digit',
+                          minute: '2-digit'
+                        })}
+                      </time>
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
         </div>
 
         <div className="p-6 border-t border-gray-100 flex justify-end flex-shrink-0 bg-white">

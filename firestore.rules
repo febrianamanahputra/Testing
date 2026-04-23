@@ -1,0 +1,123 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /{document=**} {
+      allow read, write: if false;
+    }
+    
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+    
+    function incoming() { return request.resource.data; }
+    function existing() { return resource.data; }
+    function isSignedIn() { return request.auth != null && request.auth.token.email_verified == true; }
+
+    // WORKSPACES
+    function isValidWorkspace(data) {
+      return data.keys().hasAll(['name', 'ownerId', 'aclEmails', 'createdAt', 'updatedAt'])
+        && data.keys().size() == 5
+        && data.name is string && data.name.size() > 0 && data.name.size() <= 100
+        && data.ownerId == request.auth.uid
+        && data.aclEmails is list && data.aclEmails.size() > 0 && data.aclEmails.size() <= 20
+        && data.createdAt == request.time
+        && data.updatedAt == request.time;
+    }
+
+    function isValidWorkspaceUpdate(data) {
+      return data.name is string && data.name.size() > 0 && data.name.size() <= 100
+        && data.ownerId == existing().ownerId
+        && data.aclEmails is list && data.aclEmails.size() > 0 && data.aclEmails.size() <= 20
+        && data.createdAt == existing().createdAt
+        && data.updatedAt == request.time;
+    }
+
+    match /workspaces/{wsId} {
+      allow get: if isSignedIn() && existing().aclEmails.hasAny([request.auth.token.email]);
+      allow list: if isSignedIn() && existing().aclEmails.hasAny([request.auth.token.email]);
+      
+      allow create: if isSignedIn() && isValidId(wsId) && isValidWorkspace(incoming());
+      
+      allow update: if isSignedIn() && isValidId(wsId)
+        && existing().ownerId == request.auth.uid
+        && isValidWorkspaceUpdate(incoming())
+        && incoming().diff(existing()).affectedKeys().hasOnly(['name', 'aclEmails', 'updatedAt']);
+        
+      allow delete: if isSignedIn() && existing().ownerId == request.auth.uid;
+    }
+
+    // MATERIALS
+    function isValidMaterial(data) {
+      return data.keys().hasAll(['name', 'sku', 'category', 'currentLocation', 'status', 'workspaceId', 'aclEmails', 'createdBy', 'createdAt', 'updatedAt']) 
+        && data.keys().size() == 10
+        && data.name is string && data.name.size() > 0 && data.name.size() <= 200
+        && data.sku is string && data.sku.size() > 0 && data.sku.size() <= 100
+        && data.category is string && data.category.size() > 0 && data.category.size() <= 100
+        && data.currentLocation is string && data.currentLocation.size() > 0 && data.currentLocation.size() <= 200
+        && data.status is string && data.status.size() > 0 && data.status.size() <= 50
+        && data.workspaceId is string && data.workspaceId.size() > 0 && data.workspaceId.size() <= 128
+        && data.aclEmails is list && data.aclEmails.size() > 0 && data.aclEmails.size() <= 20
+        && data.createdBy == request.auth.uid
+        && data.createdAt == request.time
+        && data.updatedAt == request.time;
+    }
+
+    function isValidMaterialUpdate(data) {
+      return data.name is string && data.name.size() > 0 && data.name.size() <= 200
+        && data.sku is string && data.sku.size() > 0 && data.sku.size() <= 100
+        && data.category is string && data.category.size() > 0 && data.category.size() <= 100
+        && data.currentLocation is string && data.currentLocation.size() > 0 && data.currentLocation.size() <= 200
+        && data.status is string && data.status.size() > 0 && data.status.size() <= 50
+        && data.workspaceId == existing().workspaceId
+        && data.aclEmails is list && data.aclEmails.size() > 0 && data.aclEmails.size() <= 20
+        && data.createdBy == existing().createdBy
+        && data.createdAt == existing().createdAt
+        && data.updatedAt == request.time;
+    }
+
+    match /materials/{materialId} {
+      allow get: if isSignedIn() && existing().aclEmails.hasAny([request.auth.token.email]);
+      allow list: if isSignedIn() && resource.data.aclEmails.hasAny([request.auth.token.email]);
+      
+      allow create: if isSignedIn()
+        && isValidId(materialId)
+        && incoming().aclEmails.hasAny([request.auth.token.email])
+        && isValidMaterial(incoming());
+        
+      allow update: if isSignedIn()
+        && isValidId(materialId)
+        && existing().aclEmails.hasAny([request.auth.token.email])
+        && isValidMaterialUpdate(incoming())
+        && incoming().diff(existing()).affectedKeys().hasOnly([
+            'name', 'sku', 'category', 'currentLocation', 'status', 'aclEmails', 'updatedAt'
+        ]);
+        
+      allow delete: if isSignedIn() 
+        && isValidId(materialId)
+        && existing().aclEmails.hasAny([request.auth.token.email]);
+
+      match /history/{historyId} {
+        function isValidHistory(data) {
+          return data.keys().hasAll(['location', 'status', 'note', 'timestamp', 'createdBy', 'aclEmails'])
+            && data.keys().size() == 6
+            && data.location is string && data.location.size() > 0 && data.location.size() <= 200
+            && data.status is string && data.status.size() > 0 && data.status.size() <= 50
+            && data.note is string && data.note.size() <= 500
+            && data.createdBy == request.auth.uid
+            && data.aclEmails is list && data.aclEmails.size() > 0 && data.aclEmails.size() <= 20
+            && data.timestamp == request.time;
+        }
+
+        allow get: if isSignedIn() && existing().aclEmails.hasAny([request.auth.token.email]);
+        allow list: if isSignedIn() && resource.data.aclEmails.hasAny([request.auth.token.email]);
+
+        allow create: if isSignedIn()
+          && isValidId(historyId)
+          && incoming().aclEmails.hasAny([request.auth.token.email])
+          && isValidHistory(incoming());
+          
+        allow update, delete: if false; 
+      }
+    }
+  }
+}

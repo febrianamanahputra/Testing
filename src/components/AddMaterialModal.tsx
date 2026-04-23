@@ -3,7 +3,6 @@ import { MaterialStatus } from '../types';
 import { X } from 'lucide-react';
 
 interface AddMaterialModalProps {
-  isOpen: boolean;
   onClose: () => void;
   onAdd: (name: string, sku: string, category: string, location: string, status: MaterialStatus) => void;
 }
@@ -11,14 +10,12 @@ interface AddMaterialModalProps {
 const CATEGORIES = ['Bahan Baku', 'Sparepart', 'Alat', 'Bahan Jadi', 'Lainnya'];
 const STATUSES: MaterialStatus[] = ['Tersedia', 'Dalam Perjalanan', 'Sedang Digunakan', 'Dalam Perbaikan', 'Hilang/Rusak'];
 
-export function AddMaterialModal({ isOpen, onClose, onAdd }: AddMaterialModalProps) {
+export function AddMaterialModal({ onClose, onAdd }: AddMaterialModalProps) {
   const [name, setName] = useState('');
   const [sku, setSku] = useState('');
   const [category, setCategory] = useState(CATEGORIES[0]);
   const [location, setLocation] = useState('');
   const [status, setStatus] = useState<MaterialStatus>(STATUSES[0]);
-
-  if (!isOpen) return null;
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
