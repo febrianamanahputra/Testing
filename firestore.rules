@@ -97,6 +97,10 @@ service cloud.firestore {
         && existing().aclEmails.hasAny([request.auth.token.email]);
 
       match /history/{historyId} {
+        function isParentOwner() {
+          return get(/databases/$(database)/documents/materials/$(materialId)).data.aclEmails.hasAny([request.auth.token.email]);
+        }
+
         function isValidHistory(data) {
           return data.keys().hasAll(['location', 'status', 'note', 'timestamp', 'createdBy', 'aclEmails'])
             && data.keys().size() == 6
@@ -108,11 +112,12 @@ service cloud.firestore {
             && data.timestamp == request.time;
         }
 
-        allow get: if isSignedIn() && existing().aclEmails.hasAny([request.auth.token.email]);
-        allow list: if isSignedIn() && resource.data.aclEmails.hasAny([request.auth.token.email]);
+        allow get: if isSignedIn() && isParentOwner();
+        allow list: if isSignedIn() && isParentOwner();
 
         allow create: if isSignedIn()
           && isValidId(historyId)
+          && isParentOwner()
           && incoming().aclEmails.hasAny([request.auth.token.email])
           && isValidHistory(incoming());
           

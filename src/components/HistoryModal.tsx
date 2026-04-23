@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Material, MaterialHistory } from '../types';
 import { X, Clock, MapPin } from 'lucide-react';
-import { collection, query, where, onSnapshot } from 'firebase/firestore';
+import { collection, query, orderBy, onSnapshot } from 'firebase/firestore';
 import { db, auth } from '../firebase';
 import { handleFirestoreError } from '../utils/firestore-error';
 
@@ -23,7 +23,7 @@ export function HistoryModal({ material, onClose }: HistoryModalProps) {
     setLoading(true);
     const q = query(
       collection(db, 'materials', material.id, 'history'),
-      where('aclEmails', 'array-contains', auth.currentUser.email)
+      orderBy('timestamp', 'desc')
     );
 
     const unsubscribe = onSnapshot(q, (snapshot) => {
@@ -31,8 +31,6 @@ export function HistoryModal({ material, onClose }: HistoryModalProps) {
         id: doc.id,
         ...doc.data()
       })) as MaterialHistory[];
-      
-      records.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
       
       setHistory(records);
       setLoading(false);
