@@ -1,0 +1,6 @@
+{
+  "name": "Material Tracker",
+  "description": "A website to input and track the location and status of materials.",
+  "requestFramePermissions": [],
+  "majorCapabilities": []
+}
